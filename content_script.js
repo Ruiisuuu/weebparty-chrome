@@ -135,7 +135,7 @@
       return delayUntil(function() {
         uiEventsHappening -= 1;
         return getState() === 'playing';
-      }, 2500)();
+      }, 1000)();
     };
 
     // freeze playback for some time and then play
@@ -155,49 +155,47 @@
     var seekErrorRecent = [];
     var seekErrorMean = 0;
     var seek = function(milliseconds) {
-        uiEventsHappening += 1;
-        var eventOptions, scrubber, oldPlaybackPosition, newPlaybackPosition;
-          // compute the parameters for the mouse events
-          scrubber = jQuery('.slider.seeker');
-          var factor = (milliseconds - seekErrorMean) / getDuration();
-          factor = Math.min(Math.max(factor, 0), 1);
-          var mouseX = scrubber.offset().left + Math.round(scrubber.width() * factor); // relative to the document
-          var mouseY = scrubber.offset().top + scrubber.height() / 2;                  // relative to the document
-          eventOptions = {
-            'bubbles': true,
-            'button': 0,
-            'screenX': mouseX - jQuery(window).scrollLeft(),
-            'screenY': mouseY - jQuery(window).scrollTop(),
-            'clientX': mouseX - jQuery(window).scrollLeft(),
-            'clientY': mouseY - jQuery(window).scrollTop(),
-            'offsetX': mouseX - scrubber.offset().left,
-            'offsetY': mouseY - scrubber.offset().top,
-            'pageX': mouseX,
-            'pageY': mouseY,
-            'currentTarget': scrubber[0]
-          };
+      console.log("SEEKING");
+      uiEventsHappening += 1;
+      var eventOptions, scrubber, oldPlaybackPosition, newPlaybackPosition;
+        // compute the parameters for the mouse events
+        scrubber = jQuery('.slider.seeker');
+        var factor = (milliseconds - seekErrorMean) / getDuration();
+        factor = Math.min(Math.max(factor, 0), 1);
+        var mouseX = scrubber.offset().left + Math.round(scrubber.width() * factor); // relative to the document
+        var mouseY = scrubber.offset().top + scrubber.height() / 2;                  // relative to the document
+        eventOptions = {
+          'bubbles': true,
+          'button': 0,
+          'screenX': mouseX - jQuery(window).scrollLeft(),
+          'screenY': mouseY - jQuery(window).scrollTop(),
+          'clientX': mouseX - jQuery(window).scrollLeft(),
+          'clientY': mouseY - jQuery(window).scrollTop(),
+          'offsetX': mouseX - scrubber.offset().left,
+          'offsetY': mouseY - scrubber.offset().top,
+          'pageX': mouseX,
+          'pageY': mouseY,
+          'currentTarget': scrubber[0]
+        };
+        // remember the old position
+        oldPlaybackPosition = getPlaybackPosition();
 
-          // make the trickplay preview show up
-          scrubber[0].dispatchEvent(new MouseEvent('mouseover', eventOptions));
-          // remember the old position
-          oldPlaybackPosition = getPlaybackPosition();
+        // simulate a click on the scrubber
+        scrubber[0].dispatchEvent(new MouseEvent('mousedown', eventOptions));
+        scrubber[0].dispatchEvent(new MouseEvent('mouseup', eventOptions));
+        scrubber[0].dispatchEvent(new MouseEvent('mouseout', eventOptions));
 
-          // simulate a click on the scrubber
-          scrubber[0].dispatchEvent(new MouseEvent('mousedown', eventOptions));
-          scrubber[0].dispatchEvent(new MouseEvent('mouseup', eventOptions));
-          scrubber[0].dispatchEvent(new MouseEvent('mouseout', eventOptions));
-
-          return delayUntil(function() {
-            // wait until the seeking is done
-            newPlaybackPosition = getPlaybackPosition();
-            return Math.abs(newPlaybackPosition - oldPlaybackPosition) >= 1;
-          }, 5000)().then(function() {
-            // compute mean seek error for next time
-            var newSeekError = Math.min(Math.max(newPlaybackPosition - milliseconds, -10000), 10000);
-            shove(seekErrorRecent, newSeekError, 5);
-            seekErrorMean = mean(seekErrorRecent);
-            uiEventsHappening -= 1;
-          });
+        return delayUntil(function() {
+          // wait until the seeking is done
+          newPlaybackPosition = getPlaybackPosition();
+          return Math.abs(newPlaybackPosition - oldPlaybackPosition) >= 1;
+        }, 5000)().then(function() {
+          // compute mean seek error for next time
+          var newSeekError = Math.min(Math.max(newPlaybackPosition - milliseconds, -10000), 10000);
+          shove(seekErrorRecent, newSeekError, 5);
+          seekErrorMean = mean(seekErrorRecent);
+          uiEventsHappening -= 1;
+        });
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -205,7 +203,7 @@
     //////////////////////////////////////////////////////////////////////////
 
     // connection to the server
-    var socket = io('http://localhost:3000');
+    var socket = io('https://weebparty-server.herokuapp.com/');
 
     // get the userId from the server
     var userId = null;
@@ -515,7 +513,7 @@
 
     // the Netflix player be kept within this many milliseconds of our
     // internal representation for the playback time
-    var maxTimeError = 2500;
+    var maxTimeError = 1500;
 
     // the session
     var sessionId = null;
@@ -552,22 +550,25 @@
     // this function should be called periodically to ensure the Netflix
     // player matches our internal representation of the playback state
     var sync = function() {
+      console.log("SYNCING");
       if (sessionId === null) {
         return Promise.resolve();
       }
       if (state === 'paused') {
-        var promise;
-        if (getState() === 'paused') {
-          promise = Promise.resolve();
-        } else {
-          promise = pause();
-        }
-        return promise.then(function() {
-          if (Math.abs(lastKnownTime - getPlaybackPosition()) > maxTimeError) {
-            console.log("LAST KNOWN TIME :",lastKnownTime);
-            return seek(lastKnownTime);
+        if (Math.abs(lastKnownTime - getPlaybackPosition()) > maxTimeError) {
+          console.log("LAST KNOWN TIME :",lastKnownTime);
+          return seek(lastKnownTime).then(() =>{
+            console.log("PAUSE AFTER SEEK");
+            pause();
+          });
+        } else{
+          if (getState() === 'paused') {
+            promise = Promise.resolve();
+          } else {
+            promise = pause();
           }
-        });
+          return promise;
+        }
       } else {
         return delayUntil(function() {
           return getState() !== 'loading';
@@ -575,7 +576,7 @@
           var localTime = getPlaybackPosition();
           var serverTime = lastKnownTime + (state === 'playing' ? ((new Date()).getTime() - (lastKnownTimeUpdatedAt.getTime() + localTimeMinusServerTimeMedian)) : 0);
           if (Math.abs(localTime - serverTime) > maxTimeError) {
-            return seek(serverTime + 2500).then(function() {
+            return seek(serverTime + 2000).then(function() {
               var localTime = getPlaybackPosition();
               var serverTime = lastKnownTime + (state === 'playing' ? ((new Date()).getTime() - (lastKnownTimeUpdatedAt.getTime() + localTimeMinusServerTimeMedian)) : 0);
               if (localTime > serverTime && localTime <= serverTime + maxTimeError) {
