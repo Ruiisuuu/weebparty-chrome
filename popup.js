@@ -73,7 +73,7 @@ $(function() {
             data: data
           }, function(response) {
             stopSpinning();
-            if (response.errorMessage) {
+            if (response != null && response.errorMessage) {
               showError(response.errorMessage);
               return;
             }
@@ -104,10 +104,12 @@ $(function() {
         version: chrome.app.getDetails().version
       }, function(initData) {
         // parse the video ID from the URL
-        var videoId = parseInt(tabs[0].url.match(/^.*\/([0-9]+)\??.*/)[1]);
+        var word = "/a/"; // TWIST MOE
+        var url = tabs[0].url.split('?')[0];
+        var videoId = url.substr(url.indexOf(word) + word.length);
 
         // initial state
-        if (initData.errorMessage) {
+        if (initData != null && initData.errorMessage) {
           showError(initData.errorMessage);
           return;
         }
@@ -115,7 +117,7 @@ $(function() {
           var sessionIdFromUrl = getURLParameter(tabs[0].url, 'npSessionId');
           if (sessionIdFromUrl) {
             sendMessage('joinSession', {
-              sessionId: sessionIdFromUrl.replace(/^\s+|\s+$/g, '').toLowerCase(),
+              sessionId: sessionIdFromUrl,
               videoId: videoId
             }, function(response) {
               showConnected(sessionIdFromUrl);

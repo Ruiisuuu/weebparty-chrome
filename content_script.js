@@ -2,8 +2,8 @@
 
 (function() {
   // make sure the content script is only run once on the page
-  if (!window.netflixPartyLoaded) {
-    window.netflixPartyLoaded = true;
+  if (!window.weebPartyLoaded) {
+    window.weebPartyLoaded = true;
 
     var version = null;
 
@@ -91,116 +91,61 @@
     // video duration in milliseconds
     var lastDuration = 60 * 60 * 1000;
     var getDuration = function() {
-      var video = jQuery('.player-video-wrapper video');
+      var video = jQuery('.AT-player video');
       if (video.length > 0) {
         lastDuration = Math.floor(video[0].duration * 1000);
       }
       return lastDuration;
     };
 
-    // 'playing', 'paused', 'loading', or 'idle'
+    // 'playing', 'paused', 'loading'
     var getState = function() {
-      if (jQuery('.timeout-wrapper.player-active .icon-play').length > 0) {
-        return 'idle';
-      }
-      if (jQuery('.player-progress-round.player-hidden').length === 0) {
-        return 'loading';
-      }
-      if (jQuery('.player-control-button.player-play-pause.play').length === 0) {
+      if (jQuery('.play-pause-btn.play').length > 0) {
         return 'playing';
-      } else {
+      } 
+      if (jQuery('.play-pause-btn.pause').length > 0) {
         return 'paused';
+      }
+      else{
+        return 'loading';
       }
     };
 
     // current playback position in milliseconds
     var getPlaybackPosition = function() {
-      return Math.floor(jQuery('.player-video-wrapper video')[0].currentTime * 1000);
-    };
-
-    // wake up from idle mode
-    var wakeUp = function() {
-      uiEventsHappening += 1;
-      jQuery('.timeout-wrapper.player-active .icon-play').click();
-      return delayUntil(function() {
-        return getState() !== 'idle';
-      }, 2500)().ensure(function() {
-        uiEventsHappening -= 1;
-      });
-    };
-
-    // show the playback controls
-    var showControls = function() {
-      uiEventsHappening += 1;
-      var scrubber = jQuery('#scrubber-component');
-      var eventOptions = {
-        'bubbles': true,
-        'button': 0,
-        'currentTarget': scrubber[0]
-      };
-      scrubber[0].dispatchEvent(new MouseEvent('mousemove', eventOptions));
-      return delayUntil(function() {
-        return scrubber.is(':visible');
-      }, 1000)().ensure(function() {
-        uiEventsHappening -= 1;
-      });
-    };
-
-    // hide the playback controls
-    var hideControls = function() {
-      uiEventsHappening += 1;
-      var player = jQuery('#netflix-player');
-      var mouseX = 100; // relative to the document
-      var mouseY = 100; // relative to the document
-      var eventOptions = {
-        'bubbles': true,
-        'button': 0,
-        'screenX': mouseX - jQuery(window).scrollLeft(),
-        'screenY': mouseY - jQuery(window).scrollTop(),
-        'clientX': mouseX - jQuery(window).scrollLeft(),
-        'clientY': mouseY - jQuery(window).scrollTop(),
-        'offsetX': mouseX - player.offset().left,
-        'offsetY': mouseY - player.offset().top,
-        'pageX': mouseX,
-        'pageY': mouseY,
-        'currentTarget': player[0]
-      };
-      player[0].dispatchEvent(new MouseEvent('mousemove', eventOptions));
-      return delay(1)().ensure(function() {
-        uiEventsHappening -= 1;
-      });
+      return Math.floor(jQuery('.AT-player video')[0].currentTime * 1000);
     };
 
     // pause
     var pause = function() {
+      console.log('PAUSING')
       uiEventsHappening += 1;
-      jQuery('.player-play-pause.pause').click();
+      jQuery('.play-pause-btn.play').click();
       return delayUntil(function() {
-        return getState() === 'paused';
-      }, 1000)().then(hideControls).ensure(function() {
         uiEventsHappening -= 1;
-      });
+        return getState() === 'paused';
+      }, 1000)();
     };
 
     // play
     var play = function() {
+      console.log('PLAYING')
       uiEventsHappening += 1;
-      jQuery('.player-play-pause.play').click();
+      jQuery('.play-pause-btn.pause').click();
       return delayUntil(function() {
-        return getState() === 'playing';
-      }, 2500)().then(hideControls).ensure(function() {
         uiEventsHappening -= 1;
-      });
+        return getState() === 'playing';
+      }, 2500)();
     };
 
     // freeze playback for some time and then play
     var freeze = function(milliseconds) {
+      console.log('FREEZING')
       return function() {
         uiEventsHappening += 1;
-        jQuery('.player-play-pause.pause').click();
+        jQuery('.play-pause-btn.play').click();
         return delay(milliseconds)().then(function() {
-          jQuery('.player-play-pause.play').click();
-        }).then(hideControls).ensure(function() {
+          jQuery('.play-pause-btn.pause').click();
           uiEventsHappening -= 1;
         });
       };
@@ -210,12 +155,10 @@
     var seekErrorRecent = [];
     var seekErrorMean = 0;
     var seek = function(milliseconds) {
-      return function() {
         uiEventsHappening += 1;
         var eventOptions, scrubber, oldPlaybackPosition, newPlaybackPosition;
-        return showControls().then(function() {
           // compute the parameters for the mouse events
-          scrubber = jQuery('#scrubber-component');
+          scrubber = jQuery('.slider.seeker');
           var factor = (milliseconds - seekErrorMean) / getDuration();
           factor = Math.min(Math.max(factor, 0), 1);
           var mouseX = scrubber.offset().left + Math.round(scrubber.width() * factor); // relative to the document
@@ -236,10 +179,6 @@
 
           // make the trickplay preview show up
           scrubber[0].dispatchEvent(new MouseEvent('mouseover', eventOptions));
-        }).then(delayUntil(function() {
-          // wait for the trickplay preview to show up
-          return jQuery('.trickplay-preview').is(':visible');
-        }, 2500)).then(function() {
           // remember the old position
           oldPlaybackPosition = getPlaybackPosition();
 
@@ -247,19 +186,18 @@
           scrubber[0].dispatchEvent(new MouseEvent('mousedown', eventOptions));
           scrubber[0].dispatchEvent(new MouseEvent('mouseup', eventOptions));
           scrubber[0].dispatchEvent(new MouseEvent('mouseout', eventOptions));
-        }).then(delayUntil(function() {
-          // wait until the seeking is done
-          newPlaybackPosition = getPlaybackPosition();
-          return Math.abs(newPlaybackPosition - oldPlaybackPosition) >= 1;
-        }, 5000)).then(function() {
-          // compute mean seek error for next time
-          var newSeekError = Math.min(Math.max(newPlaybackPosition - milliseconds, -10000), 10000);
-          shove(seekErrorRecent, newSeekError, 5);
-          seekErrorMean = mean(seekErrorRecent);
-        }).then(hideControls).ensure(function() {
-          uiEventsHappening -= 1;
-        });
-      };
+
+          return delayUntil(function() {
+            // wait until the seeking is done
+            newPlaybackPosition = getPlaybackPosition();
+            return Math.abs(newPlaybackPosition - oldPlaybackPosition) >= 1;
+          }, 5000)().then(function() {
+            // compute mean seek error for next time
+            var newSeekError = Math.min(Math.max(newPlaybackPosition - milliseconds, -10000), 10000);
+            shove(seekErrorRecent, newSeekError, 5);
+            seekErrorMean = mean(seekErrorRecent);
+            uiEventsHappening -= 1;
+          });
     };
 
     //////////////////////////////////////////////////////////////////////////
@@ -267,7 +205,7 @@
     //////////////////////////////////////////////////////////////////////////
 
     // connection to the server
-    var socket = io('https://netflixparty-server.herokuapp.com');
+    var socket = io('http://localhost:3000');
 
     // get the userId from the server
     var userId = null;
@@ -301,7 +239,7 @@
     // this is the markup that needs to be injected onto the page for chat
     var chatHtml = `
       <style>
-        #netflix-player.with-chat {
+        .theatre.with-chat {
           width: calc(100% - ${chatSidebarWidth}px) !important;
         }
 
@@ -447,7 +385,8 @@
     // set up the chat state, or reset the state if the system has already been set up
     var initChat = function() {
       if (jQuery('#chat-container').length === 0) {
-        jQuery('#netflix-player').after(chatHtml);
+        const content = jQuery('.aside-column');
+        content.html(chatHtml);
         jQuery('#presence-indicator').hide();
         var oldPageX = null;
         var oldPageY = null;
@@ -513,20 +452,20 @@
 
     // query whether the chat sidebar is visible
     var getChatVisible = function() {
-      return jQuery('#netflix-player').hasClass('with-chat');
+      return jQuery('.aside-column').hasClass('with-chat');
     };
 
     // show or hide the chat sidebar
     var setChatVisible = function(visible) {
       if (visible) {
-        jQuery('#netflix-player').addClass('with-chat');
+        jQuery('.aside-column').addClass('with-chat');
         jQuery('#chat-container').show();
         if (!document.hasFocus()) {
           clearUnreadCount();
         }
       } else {
         jQuery('#chat-container').hide();
-        jQuery('#netflix-player').removeClass('with-chat');
+        jQuery('.aside-column').removeClass('with-chat');
       }
     };
 
@@ -625,7 +564,8 @@
         }
         return promise.then(function() {
           if (Math.abs(lastKnownTime - getPlaybackPosition()) > maxTimeError) {
-            return seek(lastKnownTime)();
+            console.log("LAST KNOWN TIME :",lastKnownTime);
+            return seek(lastKnownTime);
           }
         });
       } else {
@@ -635,7 +575,7 @@
           var localTime = getPlaybackPosition();
           var serverTime = lastKnownTime + (state === 'playing' ? ((new Date()).getTime() - (lastKnownTimeUpdatedAt.getTime() + localTimeMinusServerTimeMedian)) : 0);
           if (Math.abs(localTime - serverTime) > maxTimeError) {
-            return seek(serverTime + 2000)().then(function() {
+            return seek(serverTime + 2500).then(function() {
               var localTime = getPlaybackPosition();
               var serverTime = lastKnownTime + (state === 'playing' ? ((new Date()).getTime() - (lastKnownTimeUpdatedAt.getTime() + localTimeMinusServerTimeMedian)) : 0);
               if (localTime > serverTime && localTime <= serverTime + maxTimeError) {
@@ -727,11 +667,7 @@
         tasks = Promise.resolve();
       }
       tasksInFlight += 1;
-      tasks = tasks.then(function() {
-        if (getState() === 'idle') {
-          swallow(wakeUp)();
-        }
-      }).then(swallow(task)).then(function() {
+      tasks = tasks.then(swallow(task)).then(function() {
         tasksInFlight -= 1;
       });
     };
@@ -757,7 +693,9 @@
       pushTask(ping);
       setInterval(function() {
         if (tasksInFlight === 0) {
-          var newVideoId = parseInt(window.location.href.match(/^.*\/([0-9]+)\??.*/)[1]);
+          var word = "/a/"; // TWIST MOE
+          var url = window.location.href.split('?')[0];
+          var newVideoId = url.substr(url.indexOf(word) + word.length);
           if (videoId !== null && videoId !== newVideoId) {
             videoId = newVideoId;
             sessionId = null;
