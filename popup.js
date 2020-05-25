@@ -1,170 +1,38 @@
-'use strict';
-
-$(function() {
-  var getURLParameter = function(url, key) {
-    var searchString = '?' + url.split('?')[1];
-    if (searchString === undefined) {
-      return null;
+(() => {
+    let role = null;
+    document.getElementById("leaderBtn").onclick = () => {
+        role = "leader";
+        chrome.tabs.executeScript(null, {allFrames: true, file:"injector.js"});
     }
-    var escapedKey = key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-    var regex = new RegExp('[?|&]' + escapedKey + '=' + '([^&]*)(&|$)');
-    var match = regex.exec(searchString);
-    if (match === null) {
-      return null;
+    document.getElementById("followerBtn").onclick = () => {
+        role = "follower";
+        chrome.tabs.executeScript(null, {allFrames: true, file:"injector.js"});
     }
-    return decodeURIComponent(match[1]);
-  };
-
-  // get the current tab
-  chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    }, function(tabs) {
-      // error handling
-      var showError = function(err) {
-        $('.some-error').removeClass('hidden');
-        $('.no-error').addClass('hidden');
-        $('#error-msg').html(err);
-      };
-
-      $('#close-error').click(function() {
-        $('.no-error').removeClass('hidden');
-        $('.some-error').addClass('hidden');
-      });
-
-      // set up the spinner
-      var startSpinning = function() {
-        $('#control-lock').prop('disabled', true);
-        $('#create-session').prop('disabled', true);
-        $('#leave-session').prop('disabled', true);
-      };
-
-      var stopSpinning = function() {
-        $('#control-lock').prop('disabled', false);
-        $('#create-session').prop('disabled', false);
-        $('#leave-session').prop('disabled', false);
-      };
-
-      const loadLibraries = (tabId, libs, callback) => {
-        const exec = index => {
-          if (index >= libs.length) {
-            return callback();
-          }
-          chrome.tabs.executeScript(tabId, {
-            file: libs[index]
-          }, () => exec(index + 1));
-        }
-        exec(0)
-      }
-
-      // send a message to the content script
-      var sendMessage = function(type, data, callback) {
-        startSpinning();
-        loadLibraries(tabs[0].id, [
-          'libs/jquery.js',
-          'libs/socketio.js',
-          'libs/pnglib.js',
-          'libs/sha256.js',
-          'libs/identicon.js',
-          'content_script.js'
-        ], function() {
-          chrome.tabs.sendMessage(tabs[0].id, {
-            type: type,
-            data: data
-          }, function(response) {
-            stopSpinning();
-            if (response != null && response.errorMessage) {
-              showError(response.errorMessage);
-              return;
-            }
-            if (callback) {
-              callback(response);
-            }
-          });
-        });
-      };
-
-      // connected/disconnected state
-      var showConnected = function(sessionId) {
-        var urlWithSessionId = tabs[0].url.split('?')[0] + '?npSessionId=' + encodeURIComponent(sessionId);
-        $('.disconnected').addClass('hidden');
-        $('.connected').removeClass('hidden');
-        $('#show-chat').prop('checked', true);
-        $('#share-url').val(urlWithSessionId).focus().select();
-      };
-
-      var showDisconnected = function() {
-        $('.disconnected').removeClass('hidden');
-        $('.connected').addClass('hidden');
-        $('#control-lock').prop('checked', false);
-      };
-
-      // get the session if there is one
-      sendMessage('getInitData', {
-        version: chrome.app.getDetails().version
-      }, function(initData) {
-        // parse the video ID from the URL
-        var word = "/a/"; // TWIST MOE
-        var url = tabs[0].url.split('?')[0];
-        var videoId = url.substr(url.indexOf(word) + word.length);
-
-        // initial state
-        if (initData != null && initData.errorMessage) {
-          showError(initData.errorMessage);
-          return;
-        }
-        if (initData.sessionId === null) {
-          var sessionIdFromUrl = getURLParameter(tabs[0].url, 'npSessionId');
-          if (sessionIdFromUrl) {
-            sendMessage('joinSession', {
-              sessionId: sessionIdFromUrl,
-              videoId: videoId
-            }, function(response) {
-              showConnected(sessionIdFromUrl);
+    document.getElementById("timeReqBtn").onclick = () => {
+        console.log("Clicked");
+        const videoFrameId = parseInt(localStorage.getItem('videoFrameId'));
+        if(videoFrameId) chrome.tabs.query({ currentWindow: true, active: true }, (tabs) => {
+            console.log("SENDING TIME REQ"); 
+            chrome.tabs.sendMessage(tabs[0].id, "time", {frameId: videoFrameId});
             });
-          }
-        } else {
-          showConnected(initData.sessionId);
-        }
-        $('#show-chat').prop('checked', initData.chatVisible);
-
-        // listen for clicks on the "Create session" button
-        $('#create-session').click(function() {
-          sendMessage('createSession', {
-            controlLock: $('#control-lock').is(':checked'),
-            videoId: videoId
-          }, function(response) {
-            showConnected(response.sessionId);
-          });
-        });
-
-        // listen for clicks on the "Leave session" button
-        $('#leave-session').click(function() {
-          sendMessage('leaveSession', {}, function(response) {
-            showDisconnected();
-          });
-        });
-
-        // listen for clicks on the "Show chat" checkbox
-        $('#show-chat').change(function() {
-          sendMessage('showChat', { visible: $('#show-chat').is(':checked') }, null);
-        });
-
-        // listen for clicks on the share URL box
-        $('#share-url').click(function(e) {
-          e.stopPropagation();
-          e.preventDefault();
-          $('#share-url').select();
-        });
-
-        // listen for clicks on the "Copy URL" link
-        $('#copy-btn').click(function(e) {
-          e.stopPropagation();
-          e.preventDefault();
-          $('#share-url').select();
-          document.execCommand('copy');
-        });
-      });
     }
-  );
-});
+    chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
+        console.log("Response received!");
+        if (request.hasVideo){
+            console.log("has video!");
+            localStorage.setItem('videoFrameId', sender.frameId); // Save frameId for timeReq
+            chrome.tabs.executeScript(null, {frameId: sender.frameId, file:"socket.io.js"});
+            chrome.tabs.executeScript(null, {frameId: sender.frameId, file:"content.js"},
+            () => { if (role) // Tell content script to act like follower or leader
+                chrome.tabs.query({ currentWindow: true, active: true },
+                (tabs) => {chrome.tabs.sendMessage(tabs[0].id, role, {frameId: sender.frameId});});
+            });
+        }
+        if(request.connected){
+            document.getElementById("statusText").innerHTML = "Connected to server..."
+        }
+        if(request.injected){
+            document.getElementById("statusText").innerHTML = "Injected scripts in video player..."
+        }
+    });
+})();
