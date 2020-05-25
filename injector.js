@@ -7,5 +7,9 @@
  */
 (function(){
     const video = document.getElementsByTagName("video")[0];
-    if(video) chrome.runtime.sendMessage({hasVideo:true}); // Tell bg script to inject here
+    if(video){
+        console.log('INJECTOR FOUND VIDEO');
+        chrome.runtime.sendMessage({hasVideo: true});
+        
+    }
 })();
