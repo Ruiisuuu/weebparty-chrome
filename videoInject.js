@@ -5,12 +5,23 @@
  * if it finds the desired frame (with video player).
  * https://stackoverflow.com/questions/9915311/chrome-extension-code-vs-content-scripts-vs-injected-scripts
  */
-(function(){
+(() => {
     const video = document.getElementsByTagName("video")[0];
     if(video){
         console.log('INJECTOR FOUND VIDEO');
-        chrome.runtime.sendMessage({type: "hasVideo"}, (isLeader) => { 
-            if(isLeader){
+        chrome.runtime.sendMessage({type: "hasVideo"});
+
+        // Socket events
+        chrome.runtime.onMessage.addListener( (request, sender, sendResponse) => {
+            console.log("RUNTIME MESSAGE :", request);
+            if (request.type == "getTime") sendResponse({
+                type : "time",
+                leaderIsPaused: video.paused,
+                lastKnownTime: video.currentTime,
+                lastKnownTimeUpdatedAt: new Date(),
+            });
+            else if (request.type == "becomeLeader"){
+                console.log("Becoming Leader...");
                 video.onplaying = video.onpause = () => {
                     console.log("Sending state update...", video.paused);
                     chrome.runtime.sendMessage({
@@ -28,20 +39,8 @@
                     });
                 }
                 video.onwaiting = () => { console.log('BUFFER'); }
-            } 
-        });
-
-        // Socket events
-        chrome.runtime.onMessage.addListener( (request, sender, sendResponse) => {
-            console.log("RUNTIME MESSAGE :", request);
-            if (request == "getState") sendResponse({ leaderIsPaused: video.paused });
-            else if (request == "getTime") sendResponse({
-                type : "time",
-                leaderIsPaused: video.paused,
-                lastKnownTime: video.currentTime,
-                lastKnownTimeUpdatedAt: new Date(),
-            });
-            if (request.type == "playpause" || request.type == "time"){
+            }
+            else if (request.type == "playpause" || request.type == "time"){
                 if(request.leaderIsPaused){
                     video.pause();
                     if(request.lastKnownTime) video.currentTime = request.lastKnownTime;
@@ -59,5 +58,4 @@
             }
         });
     }
-}
-)();
+})();

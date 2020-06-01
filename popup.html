@@ -5,84 +5,105 @@
     <title>WeebParty</title>
 </head>
 <style>
-    
-    /* The switch - the box around the slider */
-    .switch {
-        position: relative;
-        display: inline-block;
-        width: 60px;
-        height: 34px;
+    body{
+        padding: 0;
+        margin: 0;
+        width: 200px; 
+    }
+    p{
+        padding: 10px;
+        margin: 0;
+    }
+    #titleBox{
+        text-align: center; 
+        background-color: red;
+    }
+    #statusBox {
+        height: 50px; 
+        background-color: green; 
+        display: flex; 
+        justify-content: center; 
+        align-items: center;
+    }
+    #buttonBox {
+        display: none; 
+        height: 150px;
+        background-color: beige;
+        flex-direction: column;
+        margin: auto;
+        text-align: center;
+    }
+    button{
+        width: 50%;
+        margin-bottom: 30px;
+        margin: auto;
     }
 
-    /* Hide default HTML checkbox */
-    .switch input {
-        opacity: 0;
-        width: 0;
+    /* Toggle Switch */
+    input[type=checkbox]{
         height: 0;
+        width: 0;
+        visibility: hidden;
     }
-
-    /* The slider */
-    .slider {
-        position: absolute;
+    label {
         cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        -webkit-transition: .4s;
-        transition: .4s;
+        text-indent: -9999px;
+        width: 35px;
+        height: 20px;
+        background: grey;
+        display: block;
+        border-radius: 9999px;
+        position: relative;
     }
 
-    .slider:before {
+    label:after {
+        content: '';
         position: absolute;
-        content: "";
-        height: 26px;
-        width: 26px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        -webkit-transition: .4s;
-        transition: .4s;
+        top: 2px;
+        left: 2px;
+        width: 16px;
+        height: 16px;
+        background: #fff;
+        border-radius: 9999px;
+        transition: 0.3s;
     }
 
-    input:checked+.slider {
-        background-color: #2196F3;
+    input:checked + label {
+        background: #bada55;
     }
 
-    input:focus+.slider {
-        box-shadow: 0 0 1px #2196F3;
+    input:checked + label:after {
+        left: calc(100% - 2px);
+        transform: translateX(-100%);
     }
 
-    input:checked+.slider:before {
-        -webkit-transform: translateX(26px);
-        -ms-transform: translateX(26px);
-        transform: translateX(26px);
+    label:active:after {
+        width: 25px;
     }
 
-    /* Rounded sliders */
-    .slider.round {
-        border-radius: 34px;
-    }
-
-    .slider.round:before {
-        border-radius: 50%;
+    .notransition::after {
+        -webkit-transition: none !important;
+        -moz-transition: none !important;
+        -o-transition: none !important;
+        transition: none !important;
     }
 </style>
 
-<body style="width: 200px;">
-    <!-- <div style="height: 50px; background-color: red;"> WeebParty </div>
-    <div style="height: 50px; background-color: green;">
+<body>
+    <div id="titleBox"> 
+        <p>WeebParty</p>
+    </div>
+    <div id="statusBox">
         <p id="statusText">Connect to server</p>
-        <label class="switch">
-            <input type="checkbox">
-            <span class="slider round"></span>
-        </label>
-    </div> -->
-    <button id="leaderBtn">Leader</button>
-    <button id="followerBtn">Follower</button>
-    <button id="timeReqBtn">Request Time</button>
-
+        <input type="checkbox" id="switch"><label for="switch" id="switchLabel">Toggle</label>
+    </div>
+    <div id="buttonBox">
+        <p id="syncStatus">
+            No video player found in your page!
+        </p>
+        <button id="syncBtn">Sync</button>
+        <button id="leaderBtn">Become Leader</button>
+    </div>
     <script src="popup.js"></script>
 </body>
 
