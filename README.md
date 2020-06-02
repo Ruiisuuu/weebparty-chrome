@@ -1,15 +1,12 @@
-# Netflix Party
+# WeebParty
 
-Netflix Party is a Chrome extension for watching Netflix remotely with friends, e.g., for movie nights with that long-distance special someone. It synchronizes video playback and adds group chat.
+WeebParty is a Chrome extension which synchronizes video playback on anime streaming websites (but can also work on most websites).
 
-This is the Chrome extension. The source for the server can be found [here](https://github.com/boyers/netflixparty-server), and the source for the [website](https://www.netflixparty.com) can be found [here](https://github.com/boyers/netflixparty-website). The Chrome extension is published [here](https://chrome.google.com/webstore/detail/netflix-party/oocalimimngaihdkbihfgmpkcpnmlaoa) in the Chrome Web Store.
+This is the Chrome extension. The source for the server can be found [here](https://github.com/ruiisuuu/weebparty-server).
 
-## License
-
-Copyright (c) 2016 Stephan Boyer
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Current state/ Todo :  
+* The Chrome extension is functional but,
+* you needs to manually press an "Inject" button each time a page changes.
+* It also does not change the episode automatically
+* Only one person can be a leader at a time
+* Many edge error cases are not accounted for (in the Chrome extension and in the server).
